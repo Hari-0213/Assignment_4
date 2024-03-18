@@ -1,0 +1,372 @@
+---
+title: "Untitled"
+author: "Harini"
+date: "2024-03-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(caret)
+```
+
+```{r}
+library(factoextra)
+```
+
+```{r}
+library(dplyr)
+```
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+```
+
+```{r}
+library(cowplot)
+```
+
+```{r}
+library(readr)
+library(flexclust)
+```
+
+```{r}
+library(cluster)
+```
+
+```{r}
+library(NbClust)
+```
+
+
+# reading the csv file
+```{r}
+Pharmaceuticals <- read.csv("C:/Users/kavip/Downloads/Pharmaceuticals.csv")
+Pharmaceuticals
+```
+
+```{r}
+view(Pharmaceuticals)
+```
+
+```{r}
+head(Pharmaceuticals)
+```
+
+```{r}
+str(Pharmaceuticals)
+```
+
+```{r}
+summary(Pharmaceuticals)
+```
+
+```{r}
+dim(Pharmaceuticals)
+```
+
+```{r}
+colMeans(is.na(Pharmaceuticals))
+```
+
+```{r}
+row.names(Pharmaceuticals) <- Pharmaceuticals[,2]
+Pharmaceuticals <- Pharmaceuticals[,-2]
+```
+
+
+#1. a. Use only the numerical variables (1 to 9) to cluster the 21 firms. Justify the various choices made in conducting the cluster analysis, such as weights for different variables, the specific clustering algorithm(s) used, the number of clusters formed, and so on.
+
+```{r}
+Pharmaceuticals_1 <- Pharmaceuticals[,-c(1,11:13)]
+```
+
+In this case, I have determined the distance between each observation; but, because the Euclidean distance metric is scale-sensitive by default, the data must first be modified.
+
+```{r}
+norm.Pharmaceuticals_1 <- scale(Pharmaceuticals_1)
+```
+
+```{r}
+distance <- get_dist(norm.Pharmaceuticals_1)
+fviz_dist(distance)
+```
+
+How color intensity changes with distance is seen on the graph. The diagonal, which shows the separation between two observations, has a value of zero as we would expect.
+
+# To ascertain the ideal K value
+When external factors are absent, the Elbow chart and the Silhouette Method are two of the most effective ways to figure out how many clusters the k-means model has. While the Silhouette Method evaluates the degree of relationship between an object's cluster and other clusters, the Elbow chart shows how the addition of more clusters reduces cluster heterogeneity.
+
+
+```{r}
+WSS <- fviz_nbclust(norm.Pharmaceuticals_1, kmeans, method = "wss")
+Silhouette <- fviz_nbclust(norm.Pharmaceuticals_1, kmeans, method = "silhouette")
+plot_grid(WSS, Silhouette)
+```
+
+The elbow approach predicts that the bend happens at k=2, but the silhouette technique indicates k=5, as seen in the charts above. Using the k-means approach with k=5, that is my choice.
+
+
+```{r}
+set.seed(123)
+Kmeans.Pharamaceuticals.Optimalno <- kmeans(norm.Pharmaceuticals_1, centers = 5, nstart = 50)
+Kmeans.Pharamaceuticals.Optimalno$centers
+```
+
+```{r}
+Kmeans.Pharamaceuticals.Optimalno$size
+```
+
+```{r}
+Kmeans.Pharamaceuticals.Optimalno$withinss
+```
+
+```{r}
+fviz_cluster(Kmeans.Pharamaceuticals.Optimalno, data = norm.Pharmaceuticals_1)
+```
+
+Five clusters depending on the distances from the cores may be identified using the data. In contrast to Cluster 2's high beta and Cluster 5's low asset turnover, Cluster 4 has a large market capitalization. Additionally, each cluster's size may be ascertained. Contrary to Cluster 3, which only has two, Cluster 1 has the most firms. Data dispersion may be assessed by looking at the within-cluster sum of squared distances. In comparison to Cluster 3, Cluster 1 (21.9) has lower homogeneity. The five categories into which the data has been categorized may be seen by looking at the output of the algorithm.
+
+
+b. Interpret the clusters with respect to the numerical variables used in forming the clusters.
+
+```{r}
+set.seed(123)
+Kmeans.Pharmaceuticals <- kmeans(norm.Pharmaceuticals_1, centers = 3, nstart = 50)
+Kmeans.Pharmaceuticals$centers
+```
+
+```{r}
+Kmeans.Pharmaceuticals$size
+```
+
+```{r}
+Kmeans.Pharmaceuticals$withinss
+```
+
+```{r}
+fviz_cluster(Kmeans.Pharmaceuticals, data = norm.Pharmaceuticals_1)
+```
+
+As a result, it is easier to manage and identify the analytics' clusters. At this time, cluster 1 has 4 data points, cluster 2 contains 11 data points, and cluster 3 contains 6 data points.
+
+```{r}
+clusplot(norm.Pharmaceuticals_1,Kmeans.Pharmaceuticals$cluster,color = TRUE,shade =TRUE, labels=2,lines=)
+```
+
+firms in cluster 2 have a high leverage and estimated revenue growth but a low asset turnover and return on asset (ROA), whereas firms in cluster 1 have a low net profit margin and a high price/earnings ratio as seen in the second image. With regard to all the factors we examined, Cluster 3 was not particularly notable.
+
+c. Is there a pattern in the clusters with respect to the numerical variables (10 to 12)? (those not used in
+forming the clusters)
+
+Through taking into account the last three category factors, namely Stock Exchange, Location, and Median Recommendation. Bar charts, which graphically illustrate the distribution of organizations organized by clusters, are a useful tool for me to use while looking for trends in data.
+
+```{r}
+Pharmaceuticals3 <- Pharmaceuticals %>% select(c(11,12,13)) %>%
+mutate(Cluster = Kmeans.Pharmaceuticals$cluster)
+```
+
+```{r}
+Median_Rec <- ggplot(Pharmaceuticals3, mapping = aes(factor(Cluster), fill=Median_Recommendation)) +
+geom_bar(position = 'dodge') +
+labs(x='Clusters', y='Frequency')
+Location <- ggplot(Pharmaceuticals3, mapping = aes(factor(Cluster), fill=Location)) +
+geom_bar(position = 'dodge') +
+labs(x='Clusters', y='Frequency')
+Exchange <- ggplot(Pharmaceuticals3, mapping = aes(factor(Cluster), fill=Exchange)) +
+  geom_bar(position = 'dodge') +
+labs(x='Clusters', y='Frequency')
+plot_grid(Median_Rec,Location,Exchange)
+```
+
+A 'hold' recommendation for the shares of every company in cluster 3, the majority of which are located in the United States, is evident from the graph. The New York Stock Exchange is where they are all exchanged. Just two businesses, AMEX and NASDAQ, whose stocks are traded on different exchanges or indexes, are included in the "Moderate Buy" shares that we have selected for cluster 2. According to Cluster 1, the four companies' stocks are traded on the NYSE and they are spread across four different nations.
+
+
+d. Provide an appropriate name for each cluster using any or all of the variables in the dataset.
+
+From this list of 21 pharmaceutical businesses, we may extract all the information provided by the dataset and determine which three categories are the most different.The characteristics of Cluster 1—international location, NYSE trading, low net profit margin, and high price/earnings ratio—are what make them "overvalued international firms." Some companies raise funds on the biggest stock exchange in the world, the New York Stock Exchange, while conducting business across many continents. Based on their current profit levels, their high financial market values are unfounded. In order to keep their stock values from plunging, they need to make investments and boost their profitability to satisfy stakeholders. Cluster 2 is classified as a "growing and leveraged firm" due to the following attributes: high leverage, low asset turnover and ROA, "moderate buy" assessments, and expected increase in revenue. Investors that are prepared to wait for future development seem to place a high value on them despite their current low profitability and significant debt.Due to its US location, NYSE listing, and "Hold" ratings, Cluster 3 is considered a "mature US firm."
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
